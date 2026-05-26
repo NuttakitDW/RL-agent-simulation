@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roostoo — Live PPO Training Simulation</title>
+<title>Roostoo Labs — RL Agent Training Episodes</title>
 <link rel="icon" type="image/png" href="brand/roostoo-icon.png">
 <link rel="apple-touch-icon" href="brand/roostoo-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,15 +65,18 @@ header.brand .brand-icon {
 }
 header.brand .logo {
   font-family: var(--font-display);
-  font-weight: 800; letter-spacing: 0.04em;
-  font-size: 14px;
-  color: var(--text);
-  text-transform: uppercase;
+  font-weight: 800; letter-spacing: -0.01em;
+  font-size: 22px;
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
-header.brand .logo .dot { color: var(--accent); margin: 0 10px; font-size: 7px; line-height: 1; }
-header.brand .brand-tag { color: var(--muted); font-weight: 500; }
+header.brand .logo .dot { color: var(--accent); margin: 0 12px; font-size: 8px; line-height: 1; }
+header.brand .brand-tag {
+  color: var(--muted); font-weight: 600;
+  font-size: 12px; letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
 
 .page { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 section.scene { padding: 50px 0 30px; }
@@ -116,6 +119,12 @@ p.scene-lead code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; 
   font-family: var(--font-display);
   font-size: 20px; font-weight: 800; letter-spacing: -0.01em;
 }
+.dna-factory h3 .df-icon {
+  width: 26px; height: 26px;
+  object-fit: contain;
+  vertical-align: -6px;
+  margin-right: 8px;
+}
 .dna-factory h3 .grad { color: var(--accent); }
 .dna-factory .df-sub { font-size: 12px; color: var(--muted); }
 
@@ -132,20 +141,26 @@ p.scene-lead code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; 
 }
 .df-preset {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-  padding: 7px 14px; border-radius: 999px;
+  padding: 5px 14px 5px 5px; border-radius: 999px;
   font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
   transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.df-preset .preset-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
 }
 .df-preset:hover { filter: brightness(1.15); transform: translateY(-1px); }
 .df-preset.active { color: white; }
-.df-preset.quality-best { border-color: var(--green); color: var(--green); }
-.df-preset.quality-best.active { background: var(--green); color: var(--bg); }
-.df-preset.quality-good { border-color: var(--yellow); color: var(--yellow); }
-.df-preset.quality-good.active { background: var(--yellow); color: var(--bg); }
-.df-preset.quality-weak { border-color: var(--orange); color: var(--orange); }
-.df-preset.quality-weak.active { background: var(--orange); color: var(--bg); }
-.df-preset.quality-poor { border-color: var(--red); color: var(--red); }
-.df-preset.quality-poor.active { background: var(--red); color: white; }
+.df-preset.agent-meanrev { border-color: #4A7BFF; color: #4A7BFF; }
+.df-preset.agent-meanrev.active { background: #4A7BFF; color: var(--bg); }
+.df-preset.agent-multisignal { border-color: var(--green); color: var(--green); }
+.df-preset.agent-multisignal.active { background: var(--green); color: var(--bg); }
+.df-preset.agent-momentum { border-color: var(--red); color: var(--red); }
+.df-preset.agent-momentum.active { background: var(--red); color: white; }
+.df-preset.agent-sentiment { border-color: #B14CFF; color: #B14CFF; }
+.df-preset.agent-sentiment.active { background: #B14CFF; color: white; }
 .preset-direction {
   margin-left: auto;
   font-size: 10px; color: var(--muted);
@@ -587,31 +602,30 @@ footer.page-foot a:hover { color: var(--accent); }
 
 <header class="brand">
   <img src="brand/roostoo-icon.png" alt="Roostoo" class="brand-icon" width="32" height="32">
-  <div class="logo">ROOSTOO<span class="dot">●</span><span class="brand-tag">LIVE PPO TRAINING</span></div>
+  <div class="logo">Roostoo Labs<span class="dot">●</span><span class="brand-tag">RL Agent Training Episodes</span></div>
 </header>
 
 <div class="page">
 
   <section class="scene">
-    <div class="eyebrow">Real PPO · faithful to Schulman et al. 2017</div>
-    <h2 class="scene-title">Watch a <span class="grad">PPO agent</span> learn to trade — live, in your browser.</h2>
-    <p class="scene-lead">This is not a recording. The agent below is a tiny neural network with <b>random weights</b>. Press <code>▶ Play</code> and PPO starts training it: collect a 200-step rollout on a synthetic market → compute advantages → run K=5 epochs of clipped-surrogate gradient updates → repeat. Each pass through that loop is one <b>episode</b>. The reward curve below tracks <b>real per-episode reward</b>; you'll see it climb as the network actually learns. The whole loop runs in JavaScript with hand-written backprop.</p>
+    <h2 class="scene-title">Train a <span class="grad">RL trading agent</span> live – then battle-test it.</h2>
+    <p class="scene-lead">This is a RL agent backtesting replay. Press <code>▶ Play</code> to initialize a fresh PPO trading agent and train it inside a market sandbox. The agent collects market observations, takes actions, receives rewards, updates its policy, and repeats. Each <b>episode</b> becomes part of its learning record, while the reward curve shows whether the agent is actually improving.</p>
+    <p class="scene-lead">This is the first step in the Roostoo pipeline: <b>train</b> the agent, <b>evaluate</b> its behavior, then <b>graduate</b> it into live-market competitions.</p>
 
     <div class="dna-factory">
       <div class="df-head">
         <div>
-          <h3>🧬 <span class="grad">DNA Factory</span> — design your agent before hatching</h3>
-          <div class="df-sub">Pick which signals the agent can see, what it tries to maximize, and how much risk it can take. Then hatch it and watch how DNA shapes what gets learned.</div>
+          <h3><img class="df-icon" src="brand/roostoo-icon.png" alt=""><span class="grad">Agent Factory</span> — configure your trading agent DNA before launch</h3>
+          <div class="df-sub">Choose the market signals your agent can observe, the objective it tries to optimize, and the risk limits it must adhere. Then launch it into training and watch how its configuration shapes the strategy it learns.</div>
         </div>
       </div>
 
       <div class="df-presets">
-        <span class="preset-label">DNA spectrum</span>
-        <button class="df-preset quality-best active" data-preset="meanrev">✓ Mean-Rev Pro</button>
-        <button class="df-preset quality-good" data-preset="full">○ Full Spectrum</button>
-        <button class="df-preset quality-weak" data-preset="volume">~ Volume Hunter</button>
-        <button class="df-preset quality-poor" data-preset="timeonly">✗ Calendar Bot</button>
-        <span class="preset-direction">← good DNA  ·  poor DNA →</span>
+        <span class="preset-label">Agent DNA Templates</span>
+        <button class="df-preset agent-meanrev active" data-preset="meanrev"><img class="preset-avatar" src="brand/avatar-meanrev.jpg" alt="">Mean-Reversion Agent</button>
+        <button class="df-preset agent-multisignal" data-preset="full"><img class="preset-avatar" src="brand/avatar-multisignal.jpg" alt="">Multi-Signal Agent</button>
+        <button class="df-preset agent-momentum" data-preset="volume"><img class="preset-avatar" src="brand/avatar-momentum.jpg" alt="">Momentum</button>
+        <button class="df-preset agent-sentiment" data-preset="timeonly"><img class="preset-avatar" src="brand/avatar-sentiment.jpg" alt="">Sentiment</button>
       </div>
 
       <div class="df-grid">
@@ -1286,7 +1300,7 @@ const dna = {
 // Same algorithm, same market — the only difference is the DNA recipe.
 const DNA_PRESETS = {
   meanrev: {
-    label: 'Mean-Rev Pro',
+    label: 'Mean-Reversion Agent',
     quality: 'best',
     features: [2, 4, 5, 8],                // RSI, StochRSI, EMA-X, Bollinger z
     rewardFn: 'sharpe', maxPositionPct: 80,
@@ -1294,7 +1308,7 @@ const DNA_PRESETS = {
     expectation: 'Should reach positive reward within ~40 episodes on Turbo',
   },
   full: {
-    label: 'Full Spectrum',
+    label: 'Multi-Signal Agent',
     quality: 'good',
     features: Array.from({length: N_FEATURES}, (_, i) => i),
     rewardFn: 'pnl', maxPositionPct: 100,
@@ -1302,7 +1316,7 @@ const DNA_PRESETS = {
     expectation: 'Converges, but slower — network needs to find signal among the noise',
   },
   volume: {
-    label: 'Volume Hunter',
+    label: 'Momentum',
     quality: 'weak',
     features: [0, 1, 6, 7],                // Log-ret, Volume ratio, VWAP, OBV
     rewardFn: 'sortino', maxPositionPct: 60,
@@ -1310,7 +1324,7 @@ const DNA_PRESETS = {
     expectation: 'Struggles — flat or barely-positive reward curve',
   },
   timeonly: {
-    label: 'Calendar Bot',
+    label: 'Sentiment',
     quality: 'poor',
     features: [10, 11, 12, 13],            // Hour, Day, Weekday, Month
     rewardFn: 'pnl', maxPositionPct: 50,
