@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chinese Character Flashcards — 孙子兵法</title>
+<style>
+  :root {
+    --bg: #f4ece1;
+    --ink: #2b2b2b;
+    --accent: #8b1e1e;
+    --card-front: #fffdf7;
+    --card-back: #fbf3e4;
+    --shadow: rgba(0,0,0,0.15);
+    --muted: #6b6b6b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    max-width: 900px;
+    margin: 0 auto 16px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    color: var(--accent);
+  }
+
+  .sentence {
+    font-size: 20px;
+    line-height: 1.8;
+    background: var(--card-front);
+    padding: 16px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px var(--shadow);
+    margin: 0 auto 8px;
+    max-width: 760px;
+  }
+
+  .translation {
+    font-size: 14px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 16px;
+    border: 1px solid var(--accent);
+    background: var(--card-front);
+    color: var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  button:hover { background: var(--accent); color: white; }
+  button.primary { background: var(--accent); color: white; }
+  button.primary:hover { opacity: 0.85; }
+
+  .progress {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  /* Single study mode */
+  .study {
+    max-width: 420px;
+    margin: 0 auto;
+    perspective: 1500px;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    height: 460px;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+    cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .face.front {
+    background: var(--card-front);
+    border: 2px solid #d6c7a8;
+  }
+  .face.back {
+    background: var(--card-back);
+    border: 2px solid #c8a878;
+    transform: rotateY(180deg);
+    justify-content: flex-start;
+    padding-top: 30px;
+  }
+
+  .hanzi {
+    font-size: 180px;
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .tap-hint {
+    position: absolute;
+    bottom: 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pinyin {
+    font-size: 36px;
+    color: var(--accent);
+    margin: 0 0 8px;
+    letter-spacing: 1px;
+  }
+  .meaning {
+    font-size: 18px;
+    margin: 0 0 16px;
+    line-height: 1.5;
+    max-width: 320px;
+  }
+  .role {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .example {
+    border-top: 1px dashed #c8a878;
+    padding-top: 12px;
+    margin-top: 6px;
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.6;
+    max-width: 340px;
+  }
+  .example .highlight {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 22px;
+  }
+
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px auto 0;
+    max-width: 420px;
+  }
+
+  /* Grid review */
+  .grid {
+    display: none;
+    max-width: 900px;
+    margin: 0 auto;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .grid.visible { display: grid; }
+
+  .mini {
+    background: var(--card-front);
+    border: 1px solid #d6c7a8;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .mini:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow); }
+  .mini .mhz { font-size: 42px; color: var(--accent); line-height: 1.1; }
+  .mini .mpy { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .mini .mmn { font-size: 12px; color: var(--ink); margin-top: 2px; }
+
+  @media (max-width: 480px) {
+    .hanzi { font-size: 140px; }
+    .card { height: 400px; }
+    .sentence { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Chinese Character Flashcards</h1>
+  <div class="sentence">孙子说：战争是国家的大事，因为关系到人民的生死和国家的生存，所以得慎重地研究和分析。</div>
+  <div class="translation">Sun Tzu said: War is a great affair of the state — because it concerns the life and death of the people and the survival of the nation, it must be studied and analyzed with care.</div>
+</header>
+
+<div class="controls">
+  <button id="modeStudy" class="primary">Study Mode</button>
+  <button id="modeGrid">Grid Review</button>
+  <button id="shuffleBtn">Shuffle</button>
+  <button id="resetBtn">Reset Order</button>
+</div>
+
+<div class="progress" id="progress"></div>
+
+<section class="study" id="studyView">
+  <div class="card" id="card">
+    <div class="face front">
+      <div class="hanzi" id="hanzi">字</div>
+      <div class="tap-hint">tap card to flip</div>
+    </div>
+    <div class="face back">
+      <div class="pinyin" id="pinyin"></div>
+      <div class="meaning" id="meaning"></div>
+      <div class="role" id="role"></div>
+      <div class="example" id="example"></div>
+    </div>
+  </div>
+  <div class="nav">
+    <button id="prevBtn">← Prev</button>
+    <span id="counter" style="font-size:14px;color:var(--muted);"></span>
+    <button id="nextBtn">Next →</button>
+  </div>
+</section>
+
+<section class="grid" id="gridView"></section>
+
+<script>
+  const sentence = "孙子说：战争是国家的大事，因为关系到人民的生死和国家的生存，所以得慎重地研究和分析。";
+
+  // One entry per unique character, in order of first appearance
+  const cards = [
+    { hz: "孙", py: "sūn",  mn: "grandson; surname Sun",        role: "part of 孙子 (Sun Tzu)",            ex: "<span class='highlight'>孙</span>子说" },
+    { hz: "子", py: "zǐ",   mn: "child; master; honorific",     role: "part of 孙子 (Master Sun)",         ex: "孙<span class='highlight'>子</span>说" },
+    { hz: "说", py: "shuō", mn: "to say; to speak",             role: "verb",                              ex: "孙子<span class='highlight'>说</span>" },
+    { hz: "战", py: "zhàn", mn: "war; battle; to fight",        role: "part of 战争 (war)",                ex: "<span class='highlight'>战</span>争" },
+    { hz: "争", py: "zhēng",mn: "to contend; to struggle",      role: "part of 战争 (war)",                ex: "战<span class='highlight'>争</span>是…" },
+    { hz: "是", py: "shì",  mn: "is; to be",                    role: "copula (linking verb)",             ex: "战争<span class='highlight'>是</span>大事" },
+    { hz: "国", py: "guó",  mn: "country; nation",              role: "part of 国家 (state)",              ex: "<span class='highlight'>国</span>家" },
+    { hz: "家", py: "jiā",  mn: "family; home; -ist suffix",    role: "part of 国家 (state)",              ex: "国<span class='highlight'>家</span>的大事" },
+    { hz: "的", py: "de",   mn: "possessive / modifier particle", role: "grammar marker (like 's)",        ex: "国家<span class='highlight'>的</span>大事" },
+    { hz: "大", py: "dà",   mn: "big; great; major",            role: "adjective",                         ex: "<span class='highlight'>大</span>事" },
+    { hz: "事", py: "shì",  mn: "matter; affair; thing",        role: "noun",                              ex: "大<span class='highlight'>事</span>" },
+    { hz: "因", py: "yīn",  mn: "cause; because",               role: "part of 因为 (because)",            ex: "<span class='highlight'>因</span>为" },
+    { hz: "为", py: "wèi",  mn: "for; because of",              role: "part of 因为 (because)",            ex: "因<span class='highlight'>为</span>" },
+    { hz: "关", py: "guān", mn: "to close; relate; concern",    role: "part of 关系 (relation)",           ex: "<span class='highlight'>关</span>系到" },
+    { hz: "系", py: "xì",   mn: "to tie; connect; system",      role: "part of 关系 (relation)",           ex: "关<span class='highlight'>系</span>到" },
+    { hz: "到", py: "dào",  mn: "to arrive; to reach; up to",   role: "verb / resultative",                ex: "关系<span class='highlight'>到</span>" },
+    { hz: "人", py: "rén",  mn: "person; human",                role: "part of 人民 (the people)",         ex: "<span class='highlight'>人</span>民" },
+    { hz: "民", py: "mín",  mn: "the people; citizen",          role: "part of 人民 (the people)",         ex: "人<span class='highlight'>民</span>" },
+    { hz: "生", py: "shēng",mn: "to be born; life; to live",    role: "part of 生死 (life-and-death)",     ex: "<span class='highlight'>生</span>死" },
+    { hz: "死", py: "sǐ",   mn: "to die; death",                role: "part of 生死 (life-and-death)",     ex: "生<span class='highlight'>死</span>" },
+    { hz: "和", py: "hé",   mn: "and; with; peace",             role: "conjunction (and)",                 ex: "生死<span class='highlight'>和</span>国家" },
+    { hz: "存", py: "cún",  mn: "to exist; to survive; store",  role: "part of 生存 (survival)",           ex: "生<span class='highlight'>存</span>" },
+    { hz: "所", py: "suǒ",  mn: "place; that which; (particle)",role: "part of 所以 (therefore)",          ex: "<span class='highlight'>所</span>以" },
+    { hz: "以", py: "yǐ",   mn: "to use; in order to; with",    role: "part of 所以 (therefore)",          ex: "所<span class='highlight'>以</span>" },
+    { hz: "得", py: "děi",  mn: "must; have to; need",          role: "modal verb",                        ex: "<span class='highlight'>得</span>慎重" },
+    { hz: "慎", py: "shèn", mn: "careful; cautious",            role: "part of 慎重 (cautious)",           ex: "<span class='highlight'>慎</span>重" },
+    { hz: "重", py: "zhòng",mn: "heavy; important; serious",    role: "part of 慎重 (cautious)",           ex: "慎<span class='highlight'>重</span>" },
+    { hz: "地", py: "de",   mn: "adverbial particle (-ly); earth (dì)", role: "turns adjective → adverb", ex: "慎重<span class='highlight'>地</span>研究" },
+    { hz: "研", py: "yán",  mn: "to grind; to research",        role: "part of 研究 (research)",           ex: "<span class='highlight'>研</span>究" },
+    { hz: "究", py: "jiū",  mn: "to investigate; thoroughly",   role: "part of 研究 (research)",           ex: "研<span class='highlight'>究</span>" },
+    { hz: "分", py: "fēn",  mn: "to divide; minute; part",      role: "part of 分析 (to analyze)",         ex: "<span class='highlight'>分</span>析" },
+    { hz: "析", py: "xī",   mn: "to split; to analyze",         role: "part of 分析 (to analyze)",         ex: "分<span class='highlight'>析</span>" }
+  ];
+
+  let order = cards.map((_, i) => i);
+  let idx = 0;
+
+  const card = document.getElementById("card");
+  const hanzi = document.getElementById("hanzi");
+  const pinyin = document.getElementById("pinyin");
+  const meaning = document.getElementById("meaning");
+  const role = document.getElementById("role");
+  const example = document.getElementById("example");
+  const counter = document.getElementById("counter");
+  const progress = document.getElementById("progress");
+  const studyView = document.getElementById("studyView");
+  const gridView = document.getElementById("gridView");
+
+  function render() {
+    const c = cards[order[idx]];
+    card.classList.remove("flipped");
+    setTimeout(() => {
+      hanzi.textContent = c.hz;
+      pinyin.textContent = c.py;
+      meaning.textContent = c.mn;
+      role.textContent = c.role;
+      example.innerHTML = c.ex;
+    }, 150);
+    counter.textContent = `${idx + 1} / ${cards.length}`;
+    progress.textContent = `${cards.length} unique characters in this sentence`;
+  }
+
+  function renderGrid() {
+    gridView.innerHTML = "";
+    order.forEach((i) => {
+      const c = cards[i];
+      const div = document.createElement("div");
+      div.className = "mini";
+      div.innerHTML = `<div class="mhz">${c.hz}</div><div class="mpy">${c.py}</div><div class="mmn">${c.mn.split(";")[0]}</div>`;
+      div.addEventListener("click", () => {
+        idx = order.indexOf(i);
+        showStudy();
+        render();
+      });
+      gridView.appendChild(div);
+    });
+  }
+
+  function showStudy() {
+    studyView.style.display = "block";
+    gridView.classList.remove("visible");
+    document.getElementById("modeStudy").classList.add("primary");
+    document.getElementById("modeGrid").classList.remove("primary");
+  }
+  function showGrid() {
+    studyView.style.display = "none";
+    gridView.classList.add("visible");
+    document.getElementById("modeStudy").classList.remove("primary");
+    document.getElementById("modeGrid").classList.add("primary");
+    renderGrid();
+  }
+
+  card.addEventListener("click", () => card.classList.toggle("flipped"));
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    idx = (idx - 1 + cards.length) % cards.length;
+    render();
+  });
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    idx = (idx + 1) % cards.length;
+    render();
+  });
+  document.getElementById("shuffleBtn").addEventListener("click", () => {
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    idx = 0;
+    render();
+    if (gridView.classList.contains("visible")) renderGrid();
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    order = cards.map((_, i) => i);
+    idx = 0;
+    render();
+    if (gridView.classList.contains("visible")) renderGrid();
+  });
+  document.getElementById("modeStudy").addEventListener("click", showStudy);
+  document.getElementById("modeGrid").addEventListener("click", showGrid);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { idx = (idx + 1) % cards.length; render(); }
+    else if (e.key === "ArrowLeft") { idx = (idx - 1 + cards.length) % cards.length; render(); }
+    else if (e.key === " ") { e.preventDefault(); card.classList.toggle("flipped"); }
+  });
+
+  render();
+</script>
+</body>
+</html>
