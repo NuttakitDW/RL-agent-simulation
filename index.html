@@ -26,6 +26,7 @@
   /* Brand */
   --accent:   #FFD600;     /* Roostoo yellow — primary accent */
   --accent-dim: #B8960C;
+  --yellow:   #FFD600;     /* alias of accent */
   --green:    #34D988;     /* positive / converged / elite */
   --red:      #FF5050;     /* loss / failed DNA / elimination */
   --orange:   #FF8A00;     /* growth / secondary heat / cycle */
@@ -244,6 +245,84 @@ p.scene-lead code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; 
   box-shadow: 0 4px 14px rgba(255,214,0,0.25);
 }
 .df-hatch-btn:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,214,0,0.40); }
+
+/* ============ Aggregate Data Strip (WorldQuant style) ============ */
+.agg-data {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.agg-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.agg-title {
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+}
+.agg-agent-chip {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  color: var(--text);
+}
+.agg-agent-chip .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+}
+.agg-toggle {
+  margin-left: auto;
+  display: flex; gap: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  overflow: hidden;
+  padding: 2px;
+}
+.agg-toggle button {
+  background: transparent; border: none;
+  padding: 5px 14px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--muted); cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.15s;
+}
+.agg-toggle button.on {
+  background: var(--accent); color: var(--bg);
+}
+
+.agg-cells {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 800px) { .agg-cells { grid-template-columns: repeat(2, 1fr); } }
+.agg-cell {
+  padding: 14px 18px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.agg-cell:last-child { border-right: none; }
+.agg-cell .ac-label {
+  font-family: var(--font-display);
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;
+}
+.agg-cell .ac-value {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+}
+.agg-cell .ac-value.pos { color: var(--green); }
+.agg-cell .ac-value.neg { color: var(--red); }
+.agg-cell .ac-value.dim { color: var(--muted); }
+.agg-cell .ac-sub {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--dim);
+}
 
 /* ============ Training Panel ============ */
 .train-wrap {
@@ -644,6 +723,39 @@ footer.page-foot a:hover { color: var(--accent); }
       </div>
     </div>
 
+    <div class="agg-data">
+      <div class="agg-header">
+        <span class="agg-title">Aggregate Data</span>
+        <span class="agg-agent-chip"><span class="dot"></span><span id="agg-agent-name">—</span></span>
+        <div class="agg-toggle">
+          <button class="on" data-period="is">IS</button>
+          <button data-period="os">OS</button>
+        </div>
+      </div>
+      <div class="agg-cells">
+        <div class="agg-cell">
+          <div class="ac-label">Sharpe</div>
+          <div class="ac-value dim" id="m-sharpe">—</div>
+          <div class="ac-sub">risk-adjusted return</div>
+        </div>
+        <div class="agg-cell">
+          <div class="ac-label">Returns</div>
+          <div class="ac-value dim" id="m-returns">—</div>
+          <div class="ac-sub">end-of-episode P&amp;L</div>
+        </div>
+        <div class="agg-cell">
+          <div class="ac-label">Turnover</div>
+          <div class="ac-value dim" id="m-turnover">—</div>
+          <div class="ac-sub">trade volume / PV / bar</div>
+        </div>
+        <div class="agg-cell">
+          <div class="ac-label">Max Drawdown</div>
+          <div class="ac-value dim" id="m-maxdd">—</div>
+          <div class="ac-sub">peak-to-trough loss</div>
+        </div>
+      </div>
+    </div>
+
     <div class="train-wrap">
       <div class="train-controls">
         <div class="train-play-controls">
@@ -782,6 +894,7 @@ const C = {
   panel2: '#141414', panel3: '#1a1a1a', border: '#1e1e1e',
 };
 const MARKET_SIZE = 5000;        // total bars in the synthetic market
+const OS_START    = 4000;        // bars 4000..5000 are held out — never trained on
 const ROLLOUT_LEN = 200;
 const HIDDEN = 32;
 const N_FEATURES = 17;           // full Roostoo feature spec (was 5)
@@ -1346,13 +1459,15 @@ function resetTrainer() {
   trainer.iteration = 0;
   trainer.rewardHistory = [];
   trainer.bestAvg50 = -Infinity;
+  evalMetrics.is = { sharpe: 0, returns: 0, turnover: 0, maxDD: 0, computed: false };
+  evalMetrics.os = { sharpe: 0, returns: 0, turnover: 0, maxDD: 0, computed: false };
   startNewRollout();
 }
 
 function startNewRollout() {
   const len = ROLLOUT_LEN;
-  // Start after 200 bars of warmup so all indicators (ATR-14, BB-20, StochRSI-28, OBV-122) are ready
-  trainer.rolloutStart = 200 + Math.floor(Math.random() * (MARKET_SIZE - len - 250));
+  // IS region: bars 200 → OS_START (4000). Last 1000 bars are held out for OS evaluation only.
+  trainer.rolloutStart = 200 + Math.floor(Math.random() * (OS_START - len - 250));
   trainer.currentRollout = {
     states: [], actions: [], rewards: [], oldLogProbs: [], values: [], probs: [],
     pvHistory: [STARTING_CASH],
@@ -1384,8 +1499,9 @@ function stepRollout() {
   // Execute action
   if (action === 0 /* SELL */) {
     if (trainer.pos === 1) {
-      trainer.cash += trainer.shares * price * (1 - FEE);
-      tradeRecord = { step: t, side: 'SELL', price };
+      const proceeds = trainer.shares * price * (1 - FEE);
+      trainer.cash += proceeds;
+      tradeRecord = { step: t, side: 'SELL', price, usd: proceeds };
       trainer.shares = 0;
       trainer.pos = 0;
     }
@@ -1397,7 +1513,7 @@ function stepRollout() {
       if (usd >= 5) {
         trainer.shares = (usd / price) * (1 - FEE);
         trainer.cash -= usd;
-        tradeRecord = { step: t, side: 'BUY', price };
+        tradeRecord = { step: t, side: 'BUY', price, usd };
         trainer.pos = 1;
       }
     }
@@ -1420,6 +1536,83 @@ function stepRollout() {
   if (tradeRecord) r.trades.push(tradeRecord);
 
   trainer.currentStep++;
+}
+
+// ============================================================================
+// AGGREGATE METRICS (WorldQuant-style) — IS (training) + OS (held-out)
+// ============================================================================
+const evalMetrics = {
+  is: { sharpe: 0, returns: 0, turnover: 0, maxDD: 0, computed: false },
+  os: { sharpe: 0, returns: 0, turnover: 0, maxDD: 0, computed: false },
+};
+let aggPeriod = 'is';
+
+const ANNUALIZE_SQRT = Math.sqrt(252);   // daily-equivalent scaling, conventional
+
+function computeMetrics(pvHistory, totalTradeUSD, numBars) {
+  // step returns
+  const rets = [];
+  for (let i = 1; i < pvHistory.length; i++) {
+    rets.push((pvHistory[i] - pvHistory[i-1]) / Math.max(1e-9, pvHistory[i-1]));
+  }
+  // sharpe
+  const m = rets.length ? rets.reduce((s,x)=>s+x,0) / rets.length : 0;
+  let v = 0;
+  for (const r of rets) { const d = r - m; v += d*d; }
+  const sd = Math.sqrt(v / Math.max(1, rets.length - 1));
+  const sharpe = sd > 1e-9 ? (m / sd) * ANNUALIZE_SQRT : 0;
+  // returns
+  const initial = pvHistory[0] || STARTING_CASH;
+  const final   = pvHistory[pvHistory.length-1] || initial;
+  const returns = (final / initial - 1) * 100;
+  // max drawdown
+  let peak = initial, maxDD = 0;
+  for (const pv of pvHistory) {
+    if (pv > peak) peak = pv;
+    const dd = (peak - pv) / Math.max(1e-9, peak);
+    if (dd > maxDD) maxDD = dd;
+  }
+  // turnover
+  const turnover = (totalTradeUSD / Math.max(1, numBars * initial)) * 100;
+  return { sharpe, returns, turnover, maxDD: maxDD * 100, computed: true };
+}
+
+// Deterministic forward pass through held-out bars — no sampling, no gradient updates
+function runOSEval() {
+  if (!trainer.agent) return null;
+  const osStart = OS_START + Math.floor(Math.random() * (MARKET_SIZE - OS_START - ROLLOUT_LEN));
+  let cash = STARTING_CASH, shares = 0, pos = 0;
+  let pv = STARTING_CASH;
+  const pvHistory = [pv];
+  let totalTradeUSD = 0;
+  for (let t = 0; t < ROLLOUT_LEN; t++) {
+    const i = osStart + t;
+    const price = market[i].close;
+    const btcValue = shares * price;
+    pv = cash + btcValue;
+    const state = buildState(i, cash, btcValue, pv);
+    const f = trainer.agent.forward(state);
+    // Argmax — deterministic (no exploration noise)
+    let action = 0;
+    for (let a = 1; a < N_ACTIONS; a++) if (f.probs[a] > f.probs[action]) action = a;
+    if (action === 0 && pos === 1) {
+      const proceeds = shares * price * (1 - FEE);
+      cash += proceeds; shares = 0; pos = 0;
+      totalTradeUSD += proceeds;
+    } else if (action === 2 && pos === 0) {
+      const maxByDna = (dna.maxPositionPct / 100) * pv;
+      const usd = Math.min(cash * 0.95, maxByDna);
+      if (usd >= 5) {
+        shares = (usd / price) * (1 - FEE);
+        cash -= usd; pos = 1;
+        totalTradeUSD += usd;
+      }
+    }
+    const nextI = Math.min(i + 1, MARKET_SIZE - 1);
+    pv = cash + shares * market[nextI].price;
+    pvHistory.push(pv);
+  }
+  return computeMetrics(pvHistory, totalTradeUSD, ROLLOUT_LEN);
 }
 
 function finishIterationAndUpdate() {
@@ -1449,6 +1642,14 @@ function finishIterationAndUpdate() {
     const avg50 = mean(last50);
     if (avg50 > trainer.bestAvg50) trainer.bestAvg50 = avg50;
   }
+  // ── Aggregate metrics ──────────────────────────────────────────────
+  // IS: from the just-finished training rollout
+  let isTradeUsd = 0;
+  for (const tr of r.trades) isTradeUsd += tr.usd || 0;
+  evalMetrics.is = computeMetrics(r.pvHistory, isTradeUsd, ROLLOUT_LEN);
+  // OS: run a deterministic eval pass through the held-out region
+  const osM = runOSEval();
+  if (osM) evalMetrics.os = osM;
   trainer.iteration++;
 }
 
@@ -1807,6 +2008,28 @@ function updateLoopBoxes() {
   }
 }
 
+function updateAggregateData() {
+  // agent name reflects current DNA / preset
+  const preset = DNA_PRESETS[currentPreset];
+  document.getElementById('agg-agent-name').textContent = preset ? preset.label : 'Custom';
+  const m = evalMetrics[aggPeriod];
+  const set = (id, raw, fmt, polarity) => {
+    const el = document.getElementById(id);
+    if (!m || !m.computed) { el.textContent = '—'; el.className = 'ac-value dim'; return; }
+    const val = raw(m);
+    el.textContent = fmt(val);
+    let cls = 'ac-value';
+    if (polarity === 'pos-good') cls += val > 0 ? ' pos' : (val < 0 ? ' neg' : ' dim');
+    else if (polarity === 'neg-bad')  cls += val > 1 ? ' neg' : (val > 0.1 ? '' : ' dim');
+    else if (polarity === 'dd')       cls += val > 5 ? ' neg' : '';
+    el.className = cls;
+  };
+  set('m-sharpe',   m => m.sharpe,   v => (v>=0?'+':'') + v.toFixed(2),       'pos-good');
+  set('m-returns',  m => m.returns,  v => (v>=0?'+':'') + v.toFixed(2) + '%', 'pos-good');
+  set('m-turnover', m => m.turnover, v => v.toFixed(2) + '%',                  null);
+  set('m-maxdd',    m => m.maxDD,    v => '−' + v.toFixed(2) + '%',           'dd');
+}
+
 function renderAll() {
   drawMarketChart();
   drawRewardCurve();
@@ -1815,6 +2038,7 @@ function renderAll() {
   drawPortfolio();
   updateHeadStats();
   updateLoopBoxes();
+  updateAggregateData();
 }
 
 // ============================================================================
@@ -2008,6 +2232,15 @@ function wireDnaFactory() {
     updateDnaSummary();
   });
   document.getElementById('hatch-btn').addEventListener('click', hatchAgent);
+  // IS / OS toggle
+  document.querySelectorAll('.agg-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.agg-toggle button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      aggPeriod = btn.dataset.period;
+      updateAggregateData();
+    });
+  });
 }
 
 function wire() {
