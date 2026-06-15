@@ -29,6 +29,7 @@
   state.roster.forEach(s => { state.status[s] = 'idle'; });
 
   let replay = null;
+  let lastFrame = null;   // {run, st} of the most recent paint — for repaint on resize/zoom
 
   const PAL = {
     accent: '#FF873C', accentDim: 'rgba(255,135,60,0.30)',
@@ -249,7 +250,13 @@
         '<div class="probRow"><span class="n ' + k + '">' + k.toUpperCase() + '</span><div class="probTrack"><div class="probFill ' + k + '" id="pf-' + k + '" style="width:33%"></div></div><span class="p" id="pp-' + k + '">33%</span></div>'
       ).join('') +
       '<div class="miniLbl" style="margin-top:7px">Equity</div><canvas id="cvEquity"></canvas></div>' +
-      '</div></div>';
+      '</div>' +
+      '<div class="stageIdle" id="stageIdle"><div class="idleInner">' +
+      '<div class="idleTitle">No backtest yet</div>' +
+      '<div class="idleSub">Set your config, then run the backtest for ' + state.active + 'USDT.</div>' +
+      '<button class="runBig" data-act="rerun" data-sym="' + state.active + '">▶ Run backtest</button>' +
+      '</div></div>' +
+      '</div>';
   }
   function hs(l, id, cls) {
     return '<span class="hs"><span class="l">' + l + '</span><span class="v ' + cls + '" id="' + id + '">—</span></span>';
@@ -286,12 +293,21 @@
     if (!sym) return;
     if (replay) { replay.destroy(); replay = null; }
     const cached = state.results[sym];
-    if (!force && cached) {
-      state.status[sym] = 'done';
-      paintDone(sym, !isFresh(sym));
+    // Backtests are MANUAL: load / select / config-change never auto-run.
+    // Paint a cached result (fresh or stale) if present, else show the idle CTA.
+    if (!force) {
+      if (cached) {
+        state.status[sym] = 'done';
+        paintDone(sym, !isFresh(sym));
+      } else {
+        state.status[sym] = 'idle';
+        paintIdle(sym);
+      }
+      refreshRoster(); refreshRunWrap();
       return;
     }
-    if (!force && !cached && state.status[sym] !== 'idle') return;
+    // force === true → explicit run from a "Run backtest" / re-run button.
+    const idleEl = $('#stageIdle'); if (idleEl) idleEl.style.display = 'none';
     state.status[sym] = 'stream';
     refreshRoster(); refreshRunWrap();
     const c = engineCfg();
@@ -336,6 +352,8 @@
   function paintFrame(run, st) {
     const cvP = $('#cvPrice'), cvR = $('#cvReward'), cvE = $('#cvEquity');
     if (!cvP) return;
+    lastFrame = { run: run, st: st };
+    const idleEl = $('#stageIdle'); if (idleEl) idleEl.style.display = 'none';
     S.drawPrice(cvP, run, st, PAL);
     S.drawReward(cvR, run, st, PAL);
     S.drawEquity(cvE, run, st, PAL);
@@ -397,6 +415,52 @@
       refreshRunWrap();
     });
   }
+
+  // Idle state — no backtest has been run for this asset yet (manual-run model).
+  function paintIdle(sym) {
+    lastFrame = null;
+    hideVerdict();
+    ['#cvPrice', '#cvReward', '#cvEquity'].forEach(s => {
+      const c = $(s); if (c && c.getContext) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    });
+    ['hsEp', 'hsPv', 'hsPnl', 'hsBest', 'hsPos', 'hsTr'].forEach(id => setHs(id, '—', ''));
+    ['sell', 'hold', 'buy'].forEach(k => {
+      const f = $('#pf-' + k); if (f) f.style.width = '0%';
+      const p = $('#pp-' + k); if (p) p.textContent = '—';
+    });
+    ['see', 'act', 'rew', 'upd'].forEach(id => { const el = $('#lb-' + id); if (el) el.classList.remove('active'); });
+    setText('#lcEp', '0');
+    const stale = !!state.results[sym];
+    const csvEl = $('#csvName');
+    if (csvEl) {
+      csvEl.textContent = stale ? 'stale — run backtest to refresh' : 'not backtested — run a backtest to begin';
+      csvEl.classList.toggle('stale', stale);
+    }
+    const fill = $('#sFill'); if (fill) fill.style.width = '0%';
+    setText('#sKb', '');
+    const idleEl = $('#stageIdle');
+    if (idleEl) {
+      idleEl.style.display = 'flex';
+      const sub = idleEl.querySelector('.idleSub');
+      if (sub) sub.textContent = (stale ? 'Config changed — re-run the backtest for ' : 'Set your config, then run the backtest for ') + sym + 'USDT.';
+      const btn = idleEl.querySelector('.runBig');
+      if (btn) { btn.dataset.sym = sym; btn.textContent = stale ? '↻ Re-run backtest' : '▶ Run backtest'; }
+    }
+  }
+
+  // Repaint the current frame when the viewport changes (window resize / browser
+  // zoom / pinch) so the canvas charts + trade markers stay aligned to their box.
+  function repaintCharts() {
+    if (!lastFrame) return;
+    const cvP = $('#cvPrice'); if (!cvP) return;
+    S.drawPrice(cvP, lastFrame.run, lastFrame.st, PAL);
+    const cvR = $('#cvReward'); if (cvR) S.drawReward(cvR, lastFrame.run, lastFrame.st, PAL);
+    const cvE = $('#cvEquity'); if (cvE) S.drawEquity(cvE, lastFrame.run, lastFrame.st, PAL);
+  }
+  let _rzT = null;
+  function onViewportChange() { clearTimeout(_rzT); _rzT = setTimeout(repaintCharts, 90); }
+  window.addEventListener('resize', onViewportChange);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
   function showVerdict(sym, stale) {
     const r = state.results[sym];
@@ -550,6 +614,7 @@
         '<button data-act="enroll" data-v="' + c.id + '" class="' + (e ? 'entered' : '') + '">' + (e ? 'Entered ✓' : 'Enroll') + '</button></div>';
     }).join('');
     return '<div class="sheet warmB" data-screen-label="Warming up">' +
+      '<button class="sheetClose" data-act="close-warm" aria-label="Close" title="Back to lab">✕</button>' +
       '<div class="bootLog" id="bootLog"></div>' +
       '<div id="warmBody" style="display:none">' +
       '<div class="warmRingB"><img src="brand/roostoo-icon.png" alt=""></div>' +
@@ -586,6 +651,8 @@
 
   // ── events ─────────────────────────────────────────────────────────────
   document.addEventListener('click', e => {
+    // clicking an overlay backdrop (outside the sheet) closes it → back to the lab
+    if (e.target.classList && e.target.classList.contains('ovl')) { e.target.classList.remove('show'); return; }
     const el = e.target.closest('[data-act]');
     if (!el) return;
     const act = el.dataset.act;
@@ -706,7 +773,8 @@
       el.textContent = 'Entered ✓';
       toast('Enrolled — your agent starts competing when the round begins');
     }
-    else if (act === 'done-lab') { toast('(prototype) — this would navigate to /dashboard/agents'); }
+    else if (act === 'close-warm') { $('#ovlWarm').classList.remove('show'); }
+    else if (act === 'done-lab') { $('#ovlWarm').classList.remove('show'); toast('(prototype) — returning to the lab'); }
   });
 
   document.addEventListener('input', e => {
