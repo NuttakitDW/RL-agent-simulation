@@ -10,8 +10,16 @@
 
   const FEATURES = ['RSI', 'ATR', 'VWAP', 'MACD', 'StochRSI', 'EMA-X', 'Bollinger', 'OBV', 'Hour', 'Weekday', 'Day', 'Month'];
 
+  // Branded agent avatars — the identity carried through the build → launch flow.
+  const AGENT_AVATARS = ['agent-orange', 'agent-green', 'agent-blue', 'agent-purple', 'agent-red'];
+  function avatarSrc(i) {
+    const n = AGENT_AVATARS.length;
+    return 'brand/agents/' + AGENT_AVATARS[((i % n) + n) % n] + '.png';
+  }
+
   const state = {
     name: 'Lab Unit 01',
+    avatar: 0,                        // index into AGENT_AVATARS — the agent's look
     roster: ['BTC', 'ETH'],
     active: 'BTC',
     cfg: { frequency: '5min', training: '250000', reward: 'sharpe', feats: FEATURES.map(() => true) },
@@ -83,7 +91,9 @@
     return '<div class="bar">' +
       '<img class="icon" src="brand/roostoo-icon.png" alt="">' +
       '<span class="logo">Roostoo Labs</span><span class="dot">●</span><span class="tag">Strategy Lab — Build an Agent</span>' +
-      '<span class="nameWrap"><span class="lbl">Agent</span><input class="nameInput" id="inName" value="' + state.name + '"></span>' +
+      '<span class="nameWrap">' +
+      '<button class="agentAva" data-act="avatar" title="Click to change your agent\'s look"><img src="' + avatarSrc(state.avatar) + '" alt="agent avatar"></button>' +
+      '<span class="lbl">Agent</span><input class="nameInput" id="inName" value="' + state.name + '"></span>' +
       '<span class="barHint" id="barHint">' + n + '/' + state.roster.length + ' backtests up to date</span>' +
       '<button class="finalizeBtn" id="btnFinalize" data-act="finalize"' + (n === 0 ? ' disabled' : '') + '>Finalize agent →</button>' +
       '</div>';
@@ -583,8 +593,10 @@
       '<div class="rkCtl"><input type="range" min="1" max="' + max + '" value="' + r[valKey] + '" data-act="bslide" data-k="' + valKey + '" data-bv="bv-' + key + '"' + (r[onKey] ? '' : ' disabled') + '></div>' +
       (extra || '') + '</div>';
     return '<div class="sheet" data-screen-label="Finalize agent — risk">' +
-      '<h3>Finalize ' + state.name + '</h3>' +
+      '<div class="finHead"><img class="finAva" src="' + avatarSrc(state.avatar) + '" alt="">' +
+      '<div class="finHeadTxt"><h3>Finalize ' + state.name + '</h3>' +
       '<p class="sub">Set the <b>risk guardrails for the overall agent</b>. These apply across all ' + state.roster.length + ' asset' + (state.roster.length > 1 ? 's' : '') + ' when live.</p>' +
+      '</div></div>' +
       '<div class="rosterSum">' + cfgRow + rows + '</div>' +
       rk('sl', 'Stop loss', 'sl', 'slOn', 100, sl ? '<span class="suggestB" data-act="bsl" data-v="' + sl + '">⚑ suggested from backtest drawdowns: ' + sl + '%</span>' : '') +
       rk('tp', 'Take profit', 'tp', 'tpOn', 100) +
@@ -606,18 +618,23 @@
     ['  ✓ connected to live market feed', 'ok'],
     ['> status: WARMING UP', 'ac']
   ];
+  function avaStack(seed, n) {
+    let h = '<span class="avaStack">';
+    for (let k = 0; k < n; k++) h += '<img src="' + avatarSrc(seed + k) + '" alt="">';
+    return h + '</span>';
+  }
   function warmHtml() {
-    const comps = S.COMPETITIONS.map(c => {
+    const comps = S.COMPETITIONS.map((c, i) => {
       const e = state.enrolled[c.id];
       return '<div class="compB"><div><div class="cn">' + c.name + '</div>' +
-        '<div class="cm2"><span class="pz">$' + c.prize.toLocaleString() + ' prize</span><span>' + c.entrants + ' agents</span><span>' + c.starts + '</span><span>' + (c.fee ? c.fee + ' USDT fee' : 'free entry') + '</span></div></div>' +
+        '<div class="cm2"><span class="pz">$' + c.prize.toLocaleString() + ' prize</span>' + avaStack(i + 1, 4) + '<span>' + c.entrants + ' agents</span><span>' + c.starts + '</span><span>' + (c.fee ? c.fee + ' USDT fee' : 'free entry') + '</span></div></div>' +
         '<button data-act="enroll" data-v="' + c.id + '" class="' + (e ? 'entered' : '') + '">' + (e ? 'Entered ✓' : 'Enroll') + '</button></div>';
     }).join('');
     return '<div class="sheet warmB" data-screen-label="Warming up">' +
       '<button class="sheetClose" data-act="close-warm" aria-label="Close" title="Back to lab">✕</button>' +
       '<div class="bootLog" id="bootLog"></div>' +
       '<div id="warmBody" style="display:none">' +
-      '<div class="warmRingB"><img src="brand/roostoo-icon.png" alt=""></div>' +
+      '<div class="warmRingB"><img src="' + avatarSrc(state.avatar) + '" alt=""></div>' +
       '<div class="warmPillB"><span class="d"></span>WARMING UP</div>' +
       '<h3>' + state.name + '</h3>' +
       '<p class="copy"><b>' + state.name + '</b> is live in the paper-trading runtime and warming up — <b>enroll it into the next competition to begin competing.</b></p>' +
@@ -734,6 +751,11 @@
       pushBot('Done — config updated. Re-running the ' + state.active + ' backtest now; hit ↻ on the other assets when you are ready.');
       toast('Setup applied — re-running ' + state.active + ' backtest');
       rerender(true);
+    }
+    else if (act === 'avatar') {
+      state.avatar = (state.avatar + 1) % AGENT_AVATARS.length;
+      document.querySelectorAll('.agentAva img').forEach(im => { im.src = avatarSrc(state.avatar); });
+      toast('Agent look updated');
     }
     else if (act === 'finalize') {
       const ov = $('#ovlFinalize');
