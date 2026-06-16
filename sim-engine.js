@@ -66,20 +66,22 @@
   }
 
   // ── Synthetic 5-minute market, seeded per asset ────────────────────────
-  const MARKET_BARS = 620;
+  const MARKET_BARS = 1400;   // more history → varied, non-repeating episode windows for 300 eps
   function genMarket(symbol) {
     const a = assetBySymbol[symbol] || { price: 100, vol: 1 };
     const rng = mulberry32(hashStr('mkt:' + symbol));
     const bars = [];
     let price = a.price;
     const base = a.price;
-    let drift = 0;
+    let drift = 0, mom = 0;
     const startTs = Date.UTC(2026, 4, 1); // May 1 2026, 5-min bars
     for (let i = 0; i < MARKET_BARS; i++) {
-      if (i % 90 === 0) drift = (rng() - 0.48) * 0.0012 * a.vol; // regime shifts
-      const meanRev = -0.06 * (price - base) / base;
-      const noise = (rng() - 0.5) * 0.011 * a.vol;
-      const dp = meanRev + drift + noise;
+      if (i % 96 === 0) drift = (rng() - 0.5) * 0.0009 * a.vol;   // gentle regime shifts
+      const meanRev = -0.022 * (price - base) / base;            // weak pull — lets real trends form
+      const noise = (rng() - 0.5) * 0.008 * a.vol;
+      mom = mom * 0.74 + noise * 0.55;                           // momentum → smooth, believable trends
+      let dp = meanRev + drift + mom + noise;
+      dp = Math.max(-0.018, Math.min(0.018, dp));                // cap single-bar moves — no fake spikes
       const close = price * (1 + dp);
       bars.push({ t: startTs + i * 5 * 60 * 1000, close: close, ret: dp });
       price = close;
@@ -109,8 +111,8 @@
     return Math.max(0.18, Math.min(0.93, q));
   }
 
-  // ── Build a full 50-episode training run ───────────────────────────────
-  const EPISODES = 50;
+  // ── Build a full 300-episode training run ──────────────────────────────
+  const EPISODES = 300;
   const STEPS = 150;
   const FEE = 0.001;
   const CASH0 = 10000;
@@ -121,8 +123,8 @@
     const rng = mulberry32(hashStr('run:' + symbol + ':' + JSON.stringify(cfg)));
     const eps = [];
     for (let e = 0; e < EPISODES; e++) {
-      // learning curve: sigmoid ramp toward `quality`, with noise
-      const prog = 1 / (1 + Math.exp(-(e - 16) / 6.5));
+      // learning curve: sigmoid ramp toward `quality`, spread across the 300 episodes
+      const prog = 1 / (1 + Math.exp(-(e - 90) / 30));
       const skill = Math.max(0, Math.min(1, quality * prog + (rng() - 0.5) * 0.10));
       const start = 40 + Math.floor(rng() * (MARKET_BARS - STEPS - 60));
       const ep = simulateEpisode(market, start, skill, rng);
@@ -227,7 +229,7 @@
     return {
       firstAvg: firstAvg, lastAvg: lastAvg, vsBuyHold: lastAvg - bhAvg, buyHold: bhAvg,
       winRate: total ? (wins / total) * 100 : 0, trades: total,
-      maxDD: mddAvg, sharpe: m / sd * Math.sqrt(10),
+      maxDD: mddAvg, sharpe: Math.max(-1.2, Math.min(2.6, (m / sd) * 0.9)),
       grade: lastAvg > 6 ? 'A' : lastAvg > 3 ? 'B+' : lastAvg > 1 ? 'B' : lastAvg > 0 ? 'C' : 'D'
     };
   }
@@ -245,18 +247,9 @@
       raf: 0, acc: 0,
       done: false
     };
-    function rampSPF() {
-      const e = st.ep;
-      let s;
-      if (e < 1) s = 1.6;
-      else if (e < 3) s = 4;
-      else if (e < 10) s = 14;
-      else if (e < 30) s = 38;
-      else if (e < 47) s = 55;
-      else if (e < 49) s = 14;
-      else s = 3.5;              // slow cinematic finale
-      return s * st.speedMult;
-    }
+    // constant, steady pace (~5 bars/frame at 1×) — the speed pills (1×/3×/10×) multiply it
+    const BASE_SPF = 5;
+    function rampSPF() { return BASE_SPF * st.speedMult; }
     function tick() {
       if (!st.playing) return;
       st.acc += rampSPF();
@@ -268,7 +261,7 @@
             st.phase = 'update'; st.updateT = 1;
           }
         } else if (st.phase === 'update') {
-          st.updateT -= st.ep < 3 ? 0.07 : 0.45;
+          st.updateT -= 0.5;
           st.acc -= 1;
           if (st.updateT <= 0) {
             if (st.ep < EPISODES - 1) { st.ep++; st.step = 0; st.phase = 'play'; }
@@ -497,9 +490,9 @@
 
   // ── Fake competitions ──────────────────────────────────────────────────
   const COMPETITIONS = [
-    { id: 'c1', name: 'Weekly Rookie Cup', prize: 2500, entrants: 312, starts: 'Starts in 2d 14h', fee: 0 },
-    { id: 'c2', name: 'June Agent Grand Prix', prize: 10000, entrants: 1204, starts: 'Starts in 5d 02h', fee: 10 },
-    { id: 'c3', name: 'Volatility Sprint — 48h', prize: 1000, entrants: 86, starts: 'Starts in 11h', fee: 0 }
+    { id: 'c1', name: '3-Day June Trading Competition', prize: 1000, entrants: 426, starts: 'Starts in 2d 06h', fee: 0 },
+    { id: 'c2', name: 'Hourly Competition', prize: 150, entrants: 78, starts: 'Starts in 42m', fee: 0 },
+    { id: 'c3', name: 'Daily Agent + Human Competition', prize: 500, entrants: 213, starts: 'Starts in 6h 30m', fee: 5 }
   ];
 
   window.RoostooSim = {

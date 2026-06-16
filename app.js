@@ -29,6 +29,8 @@
     chat: [],
     chatOpen: true,
     chatBusy: false,
+    suggestIdx: 0,
+    theme: 'dark',
     risk: { sl: 15, slOn: true, tp: 40, tpOn: true, maxT: 25, maxOn: true, minT: 5, minOn: false },
     accepted: false,
     enrolled: {},
@@ -39,13 +41,28 @@
   let replay = null;
   let lastFrame = null;   // {run, st} of the most recent paint — for repaint on resize/zoom
 
-  const PAL = {
+  const PAL_DARK = {
     accent: '#FF873C', accentDim: 'rgba(255,135,60,0.30)',
     green: '#00FF87', red: '#EF5144', gold: '#FEDB29',
     grid: 'rgba(255,255,255,0.05)', zero: 'rgba(255,255,255,0.16)',
     label: 'rgba(255,255,255,0.34)', flash: 'rgba(254,219,41,@A)',
     font: "'IBM Plex Mono', monospace"
   };
+  const PAL_LIGHT = {
+    accent: '#FF873C', accentDim: 'rgba(255,135,60,0.26)',
+    green: '#16C784', red: '#EA3943', gold: '#E0A100',
+    grid: 'rgba(0,0,0,0.07)', zero: 'rgba(0,0,0,0.20)',
+    label: 'rgba(0,0,0,0.45)', flash: 'rgba(254,219,41,@A)',
+    font: "'IBM Plex Mono', monospace"
+  };
+  let PAL = PAL_DARK;   // current canvas palette — swapped by applyTheme()
+
+  function applyTheme(t) {
+    state.theme = (t === 'light') ? 'light' : 'dark';
+    document.body.classList.toggle('light', state.theme === 'light');
+    PAL = (state.theme === 'light') ? PAL_LIGHT : PAL_DARK;
+    try { localStorage.setItem('roostoo-lab-theme', state.theme); } catch (e) { /* ignore */ }
+  }
 
   // ── tooltip copy (first-timer explanations) ────────────────────────────
   const TIPS = {
@@ -95,6 +112,7 @@
       '<button class="agentAva" data-act="avatar" title="Click to change your agent\'s look"><img src="' + avatarSrc(state.avatar) + '" alt="agent avatar"></button>' +
       '<span class="lbl">Agent</span><input class="nameInput" id="inName" value="' + state.name + '"></span>' +
       '<span class="barHint" id="barHint">' + n + '/' + state.roster.length + ' backtests up to date</span>' +
+      '<button class="themeBtn" data-act="theme" title="Toggle light / dark">' + (state.theme === 'light' ? '☾' : '☀') + '</button>' +
       '<button class="finalizeBtn" id="btnFinalize" data-act="finalize"' + (n === 0 ? ' disabled' : '') + '>Finalize agent →</button>' +
       '</div>';
   }
@@ -111,6 +129,31 @@
       '<button class="chipQ" data-act="chat-chip" data-q="' + c + '">' + c + '</button>'
     ).join('') + '</span>';
   }
+  // Persistent suggested-question strip above the input — rotates after each answer.
+  const SUGGEST_POOL = [
+    'What does 5-minute frequency mean?',
+    'Which reward function should I pick?',
+    'What do the indicators do?',
+    'Tune it for volatile markets',
+    'Set me up something safe and steady',
+    'How many training steps should I use?',
+    'What does the grade mean?',
+    'Why did my backtest go stale?',
+    'What is PPO?',
+    'How do I read the learning curve?'
+  ];
+  function suggestRowHtml() {
+    const n = SUGGEST_POOL.length;
+    const i = ((state.suggestIdx % n) + n) % n;
+    const picks = [SUGGEST_POOL[i], SUGGEST_POOL[(i + 1) % n], SUGGEST_POOL[(i + 2) % n]];
+    return '<div class="chatSuggest" id="chatSuggest"><span class="suggLbl">Try asking</span>' +
+      picks.map(c => '<button class="chipQ" data-act="chat-chip" data-q="' + c + '">' + c + '</button>').join('') +
+      '</div>';
+  }
+  function refreshSuggest() {
+    const el = $('#chatSuggest');
+    if (el) el.outerHTML = suggestRowHtml();
+  }
   function applyBtn(label, patch) {
     return '<br><button class="chatApply" data-act="chat-apply" data-v=\'' + JSON.stringify(patch) + '\'>⚑ ' + label + '</button>';
   }
@@ -123,6 +166,7 @@
       '</div>' +
       '<div class="chatBody">' +
       '<div class="chatScroll" id="chatScroll"></div>' +
+      suggestRowHtml() +
       '<div class="chatInRow">' +
       '<input id="chatIn" placeholder="Ask the copilot — e.g. what does 5-minute frequency mean?">' +
       '<button class="chatSend" data-act="chat-send">Send</button>' +
@@ -135,7 +179,13 @@
       (state.chatBusy ? '<div class="cm bot typing">···</div>' : '');
     sc.scrollTop = sc.scrollHeight;
   }
-  function pushBot(html) { state.chatBusy = false; state.chat.push({ role: 'bot', html: html }); renderChat(); }
+  function pushBot(html) {
+    state.chatBusy = false;
+    state.chat.push({ role: 'bot', html: html });
+    state.suggestIdx += 3;            // rotate to a fresh set of suggestions
+    renderChat();
+    refreshSuggest();
+  }
 
   function canned(q) {
     const s = q.toLowerCase();
@@ -152,12 +202,16 @@
     if (/(indicator|feature|rsi|macd|vwap|atr|bollinger|obv|signal|sees)/.test(s))
       return 'Indicators are the market signals your agent can see: RSI (momentum), ATR (volatility), VWAP (average traded price), MACD (trend), Bollinger (price bands), OBV (volume flow), plus calendar context. Fewer signals = simpler agent; more = richer view but more noise. The same set applies to all assets.';
     if (/(training|steps|250|300|350)/.test(s))
-      return 'Training steps control how much practice the agent gets before you see results. 250k is a fast draft; 350k is the most thorough — usually better grades. The backtest replays the full 50-episode training history either way.';
+      return 'Training steps control how much practice the agent gets before you see results. 250k is a fast draft; 350k is the most thorough — usually better grades. The backtest replays the full 300-episode training history either way.';
     if (/(grade|verdict|converge|score|why.*(low|bad|drop))/.test(s))
       return 'The grade summarizes the last 10 training episodes: average return, win rate, drawdown and Sharpe. A or B means the config converged for that asset. C or worse — try more training steps, a different reward, or fewer noisy indicators.';
     if (/(re-?run|stale|orange|refresh)/.test(s))
       return 'Any edit to the config marks every asset stale (orange dot). Hit the ↻ next to an asset, the RE-RUN button above the chart, or re-run from the verdict card to refresh its backtest.';
-    return 'I can explain any setting here — frequency, reward, training steps, indicators — or suggest a setup. Try “tune it for volatile markets” or tap a question below.' + chipsHtml();
+    if (/(ppo|algorithm|how.*(learn|train|work))/.test(s))
+      return 'PPO (Proximal Policy Optimization) is the learning algorithm. Each step the agent sees the market, picks an action, gets a reward, then nudges its policy a little — never too much at once, which keeps training stable. Watch the four boxes on the right light up as it cycles.';
+    if (/(learning curve|the curve|per episode|improving|getting better)/.test(s))
+      return 'The learning curve plots return per training episode. The faint line is each episode; the bold line is the 8-episode moving average. Trending up then flattening high means the agent converged. Flat or falling means the config is not learning much — try more steps or a different reward.';
+    return 'I can explain any setting here — frequency, reward, training steps, indicators — or describe the agent you want. Tap a suggestion below to get started.';
   }
 
   async function llmReply(q) {
@@ -247,7 +301,7 @@
       hs('Episode', 'hsEp', 'gold') + hs('Portfolio', 'hsPv', '') + hs('Episode P&amp;L', 'hsPnl', '') +
       hs('Best avg(8)', 'hsBest', '') + hs('Position', 'hsPos', '') + hs('Trades', 'hsTr', '') +
       '<span class="spdWrap">' +
-      '<button class="spd on" data-act="spd" data-v="1">AUTO</button>' +
+      '<button class="spd on" data-act="spd" data-v="1">1×</button>' +
       '<button class="spd" data-act="spd" data-v="3">3×</button>' +
       '<button class="spd" data-act="spd" data-v="10">10×</button>' +
       '<button class="spd" data-act="skip">SKIP ⇥</button></span>' +
@@ -353,7 +407,7 @@
         refreshRoster();
         refreshBar();
         refreshRunWrap();
-        setText('#csvName', 'backtest_' + run.symbol + 'USDT_PPO.csv — replay complete · 50 episodes');
+        setText('#csvName', 'backtest_' + run.symbol + 'USDT_PPO.csv — replay complete · ' + S.EPISODES + ' episodes');
       }
     });
     replay.play();
@@ -377,7 +431,7 @@
     });
     const pv = ep.pv[Math.min(st.step, ep.pv.length - 1)];
     const pnl = (pv / S.CASH0 - 1) * 100;
-    setHs('hsEp', (st.ep + 1) + '/50', 'gold');
+    setHs('hsEp', (st.ep + 1) + '/' + S.EPISODES, 'gold');
     setHs('hsPv', '$' + Math.round(pv).toLocaleString(), '');
     setHs('hsPnl', fmtPct(pnl), pnl >= 0 ? 'pos' : 'neg');
     let best = -Infinity;
@@ -417,7 +471,7 @@
       if (csvEl) {
         csvEl.textContent = stale
           ? 'stale — config changed since this run'
-          : 'backtest_' + sym + 'USDT_PPO.csv — replay complete · 50 episodes';
+          : 'backtest_' + sym + 'USDT_PPO.csv — replay complete · ' + S.EPISODES + ' episodes';
         csvEl.classList.toggle('stale', !!stale);
       }
       const f = $('#sFill'); if (f) f.style.width = '100%';
@@ -481,7 +535,7 @@
     el.className = 'vCard show' + (good ? '' : ' bad');
     el.innerHTML = '<div class="vGradeRow"><div class="vGrade">' + v.grade + '</div>' +
       '<div class="vTitle">' + (good ? 'Selected Agent Config' : 'Weak convergence — tune the config') +
-      '<span class="vsym">' + sym + 'USDT · 50 training episodes</span></div></div>' +
+      '<span class="vsym">' + sym + 'USDT · ' + S.EPISODES + ' training episodes</span></div></div>' +
       (stale ? '<div class="vStale">Config changed since this run — re-run to refresh.</div>' : '') +
       vRow('Avg return · last 10 ep', fmtPct(v.lastAvg), v.lastAvg >= 0) +
       vRow('First 5 ep (untrained)', fmtPct(v.firstAvg), v.firstAvg >= 0) +
@@ -757,6 +811,12 @@
       document.querySelectorAll('.agentAva img').forEach(im => { im.src = avatarSrc(state.avatar); });
       toast('Agent look updated');
     }
+    else if (act === 'theme') {
+      applyTheme(state.theme === 'light' ? 'dark' : 'light');
+      const tb = document.querySelector('.themeBtn'); if (tb) tb.textContent = state.theme === 'light' ? '☾' : '☀';
+      repaintCharts();
+      toast(state.theme === 'light' ? 'Light mode' : 'Dark mode');
+    }
     else if (act === 'finalize') {
       const ov = $('#ovlFinalize');
       ov.innerHTML = finalizeHtml();
@@ -809,9 +869,12 @@
   });
 
   // ── boot ───────────────────────────────────────────────────────────────
+  let savedTheme = 'dark';
+  try { savedTheme = localStorage.getItem('roostoo-lab-theme') || 'dark'; } catch (e) { /* ignore */ }
+  applyTheme(savedTheme);
   state.chat.push({
     role: 'bot',
-    html: 'Welcome to the Strategy Lab. One config powers your whole roster — tune it on the left, watch the backtest replay in the middle. Ask me about any setting, or describe the agent you want.' + chipsHtml()
+    html: 'Welcome to the Strategy Lab. One config powers your whole roster — tune it on the left, watch the backtest replay in the middle. Ask me about any setting, or describe the agent you want.'
   });
   rerender(false);
 })();

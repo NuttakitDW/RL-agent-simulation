@@ -39,7 +39,59 @@
     /* ── elevation ── */
     --elev-card: 0 0.4px 1px rgba(0,0,0,0.35);
     --elev-sheet: 0 24px 60px rgba(0,0,0,0.55);
+    /* ── theme-variant tokens (overridden by body.light) ── */
+    --input-bg: rgba(255,255,255,0.06);
+    --hover: rgba(255,255,255,0.04);
+    --disabled-bg: rgba(255,255,255,0.12);
+    --disabled-fg: rgba(255,255,255,0.4);
+    --dot-idle: #333d49;
   }
+  /* ── Light mode — Roostoo app palette (white surfaces, yellow/orange accents) ── */
+  body.light {
+    --bg: #FFFFFF;
+    --bg2: #F4F6F8;
+    --panel: #FFFFFF;
+    --panel2: #F3F5F7;
+    --panel3: #E6E9EC;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #14181F;
+    --muted: #5B6470;
+    --dim: #8A929E;
+    --green: #16C784;
+    --red: #EA3943;
+    --input-bg: #EEF1F4;
+    --hover: rgba(0,0,0,0.035);
+    --disabled-bg: rgba(0,0,0,0.07);
+    --disabled-fg: rgba(0,0,0,0.32);
+    --dot-idle: #C7CDD4;
+  }
+  body.light { background: var(--bg); }
+  /* yellow reads poorly on white — use orange for accent TEXT in light mode */
+  body.light .aiSpark,
+  body.light #tipPop b,
+  body.light .cfgUni b,
+  body.light .hs .v.gold,
+  body.light .loopCenter .ep,
+  body.light .loopCycleLbl b,
+  body.light .rsRow.cfgSum .ck,
+  body.light .rItem .rr:hover,
+  body.light .rkHead .v { color: var(--orange); }
+  body.light .rkHead .v.off { color: var(--dim); }
+  body.light #ftCount { color: var(--orange) !important; }
+  body.light .warmPillB { color: #9A5B00; background: rgba(254,219,41,0.22); border-color: rgba(224,161,0,0.55); }
+  body.light .warmPillB .d { background: var(--orange); }
+  /* tints that hardcode neon green/red — soften for a white background */
+  body.light .vCard { border-color: rgba(22,199,132,0.45); background: rgba(22,199,132,0.07); }
+  body.light .vCard.bad { border-color: rgba(234,57,67,0.40); background: rgba(234,57,67,0.06); }
+  body.light .chatApply, body.light .suggestB { background: rgba(22,199,132,0.10); border-color: rgba(22,199,132,0.55); }
+  body.light .stDot.tested { box-shadow: 0 0 6px rgba(22,199,132,0.5); }
+  body.light .cm.user { background: rgba(254,219,41,0.20); border-color: rgba(224,161,0,0.45); }
+  /* keep the boot-log a dark terminal even in light mode */
+  body.light .bootLog { background: #0C1117; border-color: rgba(255,255,255,0.08); color: #BDBDBD; }
+  /* softer elevation on white */
+  body.light .panel, body.light .stagePanel, body.light .streamLine, body.light .chatDock { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  body.light .bar { box-shadow: 0 1px 2px rgba(0,0,0,0.07); }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 15px; overflow: hidden; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -54,18 +106,20 @@
   .bar .dot { color: var(--orange); font-size: 6px; margin: 0 7px; vertical-align: middle; }
   .nameWrap { display: flex; align-items: center; gap: 9px; margin-left: 20px; flex: 1; min-width: 0; }
   .nameWrap .lbl { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; white-space: nowrap; }
-  .nameInput { background: rgba(255,255,255,0.06); border: 1px solid transparent; border-radius: 6px; color: var(--text); font-family: var(--display); font-weight: 700; font-size: 15px; padding: 6px 11px; outline: none; min-width: 0; width: 240px; transition: border-color 0.15s; }
+  .nameInput { background: var(--input-bg); border: 1px solid transparent; border-radius: 6px; color: var(--text); font-family: var(--display); font-weight: 700; font-size: 15px; padding: 6px 11px; outline: none; min-width: 0; width: 240px; transition: border-color 0.15s; }
   .nameInput:hover { border-color: var(--border2); }
   .nameInput:focus { border-color: var(--accent); }
   .finalizeBtn { background: var(--accent); color: #0C1117; border: none; padding: 11px 24px; border-radius: 24px; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 0.073em; text-transform: uppercase; cursor: pointer; transition: filter 0.16s, transform 0.16s; white-space: nowrap; }
   .finalizeBtn:hover { filter: brightness(1.05); }
   .finalizeBtn:active { transform: scale(0.98); }
-  .finalizeBtn:disabled { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); cursor: not-allowed; }
+  .finalizeBtn:disabled { background: var(--disabled-bg); color: var(--disabled-fg); cursor: not-allowed; }
   .barHint { font-size: 12px; color: var(--dim); font-family: var(--mono); white-space: nowrap; }
   /* agent identity avatar (top bar) — click to cycle the look */
   .agentAva { width: 32px; height: 32px; border-radius: 50%; padding: 0; border: 1.5px solid var(--border2); background: var(--panel2); cursor: pointer; flex-shrink: 0; overflow: hidden; transition: border-color 0.15s, transform 0.15s; }
   .agentAva img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .agentAva:hover { border-color: var(--accent); transform: scale(1.06); }
+  .themeBtn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border2); background: var(--panel2); color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .themeBtn:hover { border-color: var(--orange); color: var(--orange); }
 
   /* ── copilot chat dock ── */
   .chatDock { margin: 13px 18px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--elev-card); }
@@ -88,7 +142,7 @@
   .chatApply { display: inline-flex; margin-top: 9px; background: rgba(0,255,135,0.08); border: 1px dashed rgba(0,255,135,0.45); color: var(--green); border-radius: 24px; padding: 5px 13px; font-size: 11px; font-weight: 600; font-family: var(--body); cursor: pointer; }
   .chatApply:hover { background: rgba(0,255,135,0.16); }
   .chatInRow { display: flex; gap: 9px; padding: 11px 14px 13px; border-top: 1px solid var(--border); }
-  .chatInRow input { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 9px 13px; font-size: 13px; outline: none; font-family: var(--body); }
+  .chatInRow input { flex: 1; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 9px 13px; font-size: 13px; outline: none; font-family: var(--body); }
   .chatInRow input::placeholder { color: var(--dim); }
   .chatInRow input:focus { border-color: var(--accent); }
   .chatSend { background: var(--accent); color: #0C1117; border: none; border-radius: 24px; padding: 0 20px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.073em; }
@@ -97,7 +151,7 @@
   /* ── "?" info tooltips (filled-dot style like exchange info icons) ── */
   .qTip { display: inline-flex; width: 14px; height: 14px; border-radius: 50%; background: var(--panel3); color: var(--muted); font-size: 9px; align-items: center; justify-content: center; cursor: help; margin-left: 5px; font-family: var(--body); font-weight: 700; vertical-align: middle; flex-shrink: 0; }
   .qTip:hover { background: var(--orange); color: #0C1117; }
-  #tipPop { position: fixed; z-index: 80; max-width: 276px; background: #1B232D; border: 1px solid var(--border2); border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.65; color: var(--muted); box-shadow: var(--elev-sheet); display: none; pointer-events: none; }
+  #tipPop { position: fixed; z-index: 80; max-width: 276px; background: var(--panel2); border: 1px solid var(--border2); border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.65; color: var(--muted); box-shadow: var(--elev-sheet); display: none; pointer-events: none; }
   #tipPop b { color: var(--accent); font-weight: 700; }
 
   /* ── workbench grid ── */
@@ -112,15 +166,15 @@
   /* roster */
   .roster { display: flex; flex-direction: column; gap: 5px; }
   .rItem { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; background: transparent; width: 100%; font-family: inherit; color: var(--text); text-align: left; transition: all 0.13s; position: relative; }
-  .rItem:hover { background: rgba(255,255,255,0.04); }
+  .rItem:hover { background: var(--hover); }
   .rItem.on { background: rgba(254,219,41,0.07); border-color: rgba(254,219,41,0.45); }
-  .rItem img { width: 28px; height: 28px; border-radius: 50%; background: #1B232D; }
+  .rItem img { width: 28px; height: 28px; border-radius: 50%; background: var(--panel2); }
   .rItem .rs { flex: 1; min-width: 0; }
   .rItem .sym { font-size: 14px; font-weight: 700; }
   .rItem .meta { font-size: 11px; color: var(--dim); }
   .rItem .meta.pos { color: var(--green); }
   .rItem .meta.neg { color: var(--red); }
-  .rItem .stDot { width: 8px; height: 8px; border-radius: 50%; background: #333d49; flex-shrink: 0; }
+  .rItem .stDot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-idle); flex-shrink: 0; }
   .rItem .stDot.tested { background: var(--green); box-shadow: 0 0 6px rgba(0,255,135,0.6); }
   .rItem .stDot.stale { background: var(--orange); }
   .rItem .stDot.live { background: var(--accent); animation: blink 0.9s infinite; }
@@ -153,7 +207,7 @@
   .ft:hover { border-color: var(--border2); }
   .ft.on { border-color: rgba(254,219,41,0.5); background: rgba(254,219,41,0.07); color: var(--text); }
   .ft.off { opacity: 0.4; }
-  .ft i { width: 7px; height: 7px; border-radius: 2px; background: #333d49; flex-shrink: 0; }
+  .ft i { width: 7px; height: 7px; border-radius: 2px; background: var(--dot-idle); flex-shrink: 0; }
   .ft.on i { background: var(--accent); }
 
   /* ── center stage ── */
@@ -267,7 +321,7 @@
   .sheetBtns .ghost:hover { border-color: var(--orange); color: var(--orange); }
   .sheetBtns .go { flex: 1; padding: 13px; background: var(--accent); border: none; border-radius: 24px; color: #0C1117; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 0.073em; text-transform: uppercase; cursor: pointer; }
   .go:hover { filter: brightness(1.05); }
-  .go:disabled { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); cursor: not-allowed; }
+  .go:disabled { background: var(--disabled-bg); color: var(--disabled-fg); cursor: not-allowed; }
   .rosterSum { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
   .rsRow { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 8px 11px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; white-space: nowrap; }
   .rsRow img { width: 22px; height: 22px; border-radius: 50%; }
@@ -304,7 +358,7 @@
   .warmFootB button { background: none; border: none; color: var(--orange); font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--display); }
   .warmFootB button:hover { filter: brightness(1.15); }
 
-  .toastB { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1B232D; border: 1px solid var(--border2); color: var(--text); font-size: 13px; padding: 11px 19px; border-radius: 8px; transition: transform 0.3s cubic-bezier(0.33,1,0.68,1); z-index: 60; box-shadow: var(--elev-sheet); }
+  .toastB { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--panel2); border: 1px solid var(--border2); color: var(--text); font-size: 13px; padding: 11px 19px; border-radius: 8px; transition: transform 0.3s cubic-bezier(0.33,1,0.68,1); z-index: 60; box-shadow: var(--elev-sheet); }
   .toastB.show { transform: translateX(-50%) translateY(0); }
 
   /* honor reduced-motion: neutralize decorative blink/pulse/entrance + transitions
